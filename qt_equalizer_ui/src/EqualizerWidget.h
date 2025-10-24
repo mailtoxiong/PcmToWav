@@ -8,6 +8,7 @@
 
 class QLabel;
 class QSlider;
+class EqualizerCurveWidget;
 
 namespace Ui {
 class EqualizerWidget;
@@ -36,9 +37,11 @@ signals:
 
 private slots:
     void handleSliderValueChanged(int value);
+    void handleCurveBandValueChanged(int bandIndex, int value);
 
 private:
     Ui::EqualizerWidget *ui;
+    EqualizerCurveWidget *m_curveWidget;
 
     struct BandControl
     {
@@ -50,6 +53,7 @@ private:
     bool m_isBypassed;
 
     void initializeBands();
+    void initializeCurve();
     void updateValueLabel(int bandIndex, int value);
     void applyBypassState();
 };
