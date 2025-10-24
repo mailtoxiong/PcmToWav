@@ -1,5 +1,6 @@
 #include "EqualizerWidget.h"
 #include "ui_EqualizerWidget.h"
+#include "EqualizerCurveWidget.h"
 
 #include <QLabel>
 #include <QSlider>
@@ -9,11 +10,13 @@
 EqualizerWidget::EqualizerWidget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::EqualizerWidget)
+    , m_curveWidget(nullptr)
     , m_isBypassed(false)
 {
     ui->setupUi(this);
 
     initializeBands();
+    initializeCurve();
 }
 
 EqualizerWidget::~EqualizerWidget()
@@ -32,6 +35,10 @@ void EqualizerWidget::setBandValues(const QVector<int> &values)
         slider->setValue(clamped);
         slider->blockSignals(blocked);
         updateValueLabel(i, clamped);
+    }
+
+    if (m_curveWidget) {
+        m_curveWidget->setBandValues(bandValues());
     }
 }
 
@@ -84,6 +91,11 @@ void EqualizerWidget::handleSliderValueChanged(int value)
     }
 
     updateValueLabel(bandIndex, value);
+
+    if (m_curveWidget) {
+        m_curveWidget->setBandValue(bandIndex, value);
+    }
+
     emit bandValueChanged(bandIndex, value);
 }
 
@@ -148,6 +160,29 @@ void EqualizerWidget::initializeBands()
     }
 }
 
+void EqualizerWidget::initializeCurve()
+{
+    m_curveWidget = ui->curveWidget;
+    if (!m_curveWidget) {
+        return;
+    }
+
+    int minimumGain = -12;
+    int maximumGain = 12;
+
+    if (!m_bands.isEmpty() && m_bands.first().slider) {
+        minimumGain = m_bands.first().slider->minimum();
+        maximumGain = m_bands.first().slider->maximum();
+    }
+
+    m_curveWidget->setMinimumGain(minimumGain);
+    m_curveWidget->setMaximumGain(maximumGain);
+    m_curveWidget->setBandValues(bandValues());
+    m_curveWidget->setEnabled(!m_isBypassed);
+
+    connect(m_curveWidget, &EqualizerCurveWidget::bandValueChanged, this, &EqualizerWidget::handleCurveBandValueChanged);
+}
+
 void EqualizerWidget::updateValueLabel(int bandIndex, int value)
 {
     if (bandIndex < 0 || bandIndex >= m_bands.size()) {
@@ -167,6 +202,20 @@ void EqualizerWidget::updateValueLabel(int bandIndex, int value)
     label->setText(text);
 }
 
+void EqualizerWidget::handleCurveBandValueChanged(int bandIndex, int value)
+{
+    if (bandIndex < 0 || bandIndex >= m_bands.size()) {
+        return;
+    }
+
+    QSlider *slider = m_bands.at(bandIndex).slider;
+    if (!slider) {
+        return;
+    }
+
+    slider->setValue(value);
+}
+
 void EqualizerWidget::applyBypassState()
 {
     for (int i = 0; i < m_bands.size(); ++i) {
@@ -176,5 +225,9 @@ void EqualizerWidget::applyBypassState()
         if (QLabel *label = m_bands.at(i).valueLabel) {
             label->setEnabled(!m_isBypassed);
         }
+    }
+
+    if (m_curveWidget) {
+        m_curveWidget->setEnabled(!m_isBypassed);
     }
 }
